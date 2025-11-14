@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Radio Nest Sticky Player</title>
+  <style>
+    body {
+      margin: 0;
+      padding-bottom: 60px;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    #stickyPlayer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px 14px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+      background-color: #000;
+      color: #fff;
+      z-index: 9999;
+    }
+
+    .player-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .left-side {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 1;
+    }
+
+    #playPause {
+      background: #ffffff;
+      color: #000000;
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #playPause.playing {
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%   { transform: scale(1);   opacity: 1; }
+      50%  { transform: scale(1.1); opacity: 0.85; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    .track-info {
+      display: flex;
+      flex-direction: column;
+      font-size: 12px;
+    }
+
+    .track-info p {
+      margin: 2px 0;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<div id="stickyPlayer">
+  <div class="player-content">
+    <div class="left-side">
+      <button id="playPause">▶</button>
+      <div class="track-info">
+        <p id="trackTitle"><strong>Radio</strong></p>
+        <p id="trackArtist"><strong>Radio</strong></p>
+      </div>
+    </div>
+  </div>
+  <audio id="audio" preload="none"></audio>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const streamURL = params.get("stream") || "https://ecpro.myradionest.com:1065/stream";
+  const metadataURL = params.get("meta") || "https://ecpro.myradionest.com:1065/status-json.xsl";
+
+  const audio = document.getElementById("audio");
+  audio.src = streamURL;
+
+  const playPauseBtn = document.getElementById("playPause");
+  const trackTitle = document.getElementById("trackTitle");
+  const trackArtist = document.getElementById("trackArtist");
+  let lastSong = "";
+
+  function cleanMetadata(str) {
+    return str.replace(/\(.*?\)|\[.*?\]|feat\.|ft\.|\/.*$/gi, "").trim();
+  }
+
+  function updateMetadata() {
+    fetch(metadataURL)
+      .then(res => res.json())
+      .then(data => {
+        const raw = data?.icestats?.source?.title || "";
+        if (!raw || raw === lastSong) return;
+
+        lastSong = raw;
+        let [artist, title] = raw.split(" - ");
+        artist = cleanMetadata(artist || "Radio");
+        title = cleanMetadata(title || "Radio");
+
+        if (artist.toLowerCase() === "unknown") artist = "Radio";
+        if (title.toLowerCase() === "unknown") title = "Radio";
+
+        trackTitle.innerHTML = `<strong>${title}</strong>`;
+        trackArtist.innerHTML = `<strong>${artist}</strong>`;
+      })
+      .catch(err => {
+        console.error("Metadata fetch failed:", err);
+      });
+  }
+
+  updateMetadata();
+  setInterval(updateMetadata, 15000);
+
+  playPauseBtn.addEventListener("click", () => {
+    if (audio.paused) {
+      audio.play().then(() => {
+        playPauseBtn.textContent = "⏸";
+        playPauseBtn.classList.add("playing");
+      }).catch(err => {
+        console.error("Playback failed:", err);
+      });
+    } else {
+      audio.pause();
+      playPauseBtn.textContent = "▶";
+      playPauseBtn.classList.remove("playing");
+    }
+  });
+</script>
+
+</body>
+</html>
